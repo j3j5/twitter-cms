@@ -15,9 +15,21 @@ class HomeController extends BaseController {
 	|
 	*/
 
-	public function showWelcome()
-	{
-		return View::make('hello');
+	public function __construct() {
+		parent::__construct();
+		$this->beforeFilter('auth', array('only', 'anyProfile'));
+	}
+
+	public function anyIndex(){
+		return View::make('home.index')->with('logged_in', Auth::check());
+	}
+
+	public function anyProfile() {
+
+		var_dump(Auth::check());
+
+		$this->afterFilter('log', array('only' => array('login')));
+		return View::make('home.profile');
 	}
 
 }

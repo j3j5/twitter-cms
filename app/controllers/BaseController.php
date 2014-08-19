@@ -2,17 +2,13 @@
 
 class BaseController extends Controller {
 
-	/**
-	 * Setup the layout used by the controller.
-	 *
-	 * @return void
-	 */
-	protected function setupLayout()
+	public function __construct() {
+	}
+
+	public function missingMethod($parameters = array())
 	{
-		if ( ! is_null($this->layout))
-		{
-			$this->layout = View::make($this->layout);
-		}
+		var_dump($parameters); exit;
+		App::abort('404');
 	}
 
 }

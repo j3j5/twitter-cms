@@ -1,9 +1,10 @@
 {
     "_readme": [
         "This file locks the dependencies of your project to a known state",
-        "Read more about it at http://getcomposer.org/doc/01-basic-usage.md#composer-lock-the-lock-file"
+        "Read more about it at http://getcomposer.org/doc/01-basic-usage.md#composer-lock-the-lock-file",
+        "This file is @generated automatically"
     ],
-    "hash": "a8c9bc04a5706bf54f2a6d2e62168e90",
+    "hash": "068415aee2bdf95b1e8d67e605cb3887",
     "packages": [
         {
             "name": "classpreloader/classpreloader",
@@ -504,6 +505,130 @@
                 "php"
             ],
             "time": "2014-07-23 18:24:17"
+        },
+        {
+            "name": "orchestra/asset",
+            "version": "v2.2.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/orchestral/asset.git",
+                "reference": "e0ae609ad0d803da2a8a276ae00a6309c4e19ffc"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/orchestral/asset/zipball/e0ae609ad0d803da2a8a276ae00a6309c4e19ffc",
+                "reference": "e0ae609ad0d803da2a8a276ae00a6309c4e19ffc",
+                "shasum": ""
+            },
+            "require": {
+                "orchestra/support": "2.2.*",
+                "php": ">=5.4.0"
+            },
+            "require-dev": {
+                "illuminate/container": "4.2.*",
+                "illuminate/support": "4.2.*",
+                "mockery/mockery": "0.9.*"
+            },
+            "suggest": {
+                "laravel/framework": "Allow using orchestra/asset component outside of Orchestra Platform 2",
+                "orchestra/foundation": "Allow using orchestra/asset with Orchestra Platform 2"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-master": "2.3-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Orchestra\\Asset\\": "src/Asset/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Mior Muhammad Zaki",
+                    "email": "crynobone@gmail.com",
+                    "homepage": "https://github.com/crynobone"
+                }
+            ],
+            "description": "Orchestra Platform 2 Asset Component",
+            "homepage": "http://orchestraplatform.com/docs/latest/components/asset/",
+            "keywords": [
+                "asset",
+                "laravel",
+                "orchestra-platform",
+                "orchestral"
+            ],
+            "time": "2014-05-08 06:12:37"
+        },
+        {
+            "name": "orchestra/support",
+            "version": "v2.2.4",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/orchestral/support.git",
+                "reference": "c8370a5be60d81c14d1c1686f42dff2635ffb475"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/orchestral/support/zipball/c8370a5be60d81c14d1c1686f42dff2635ffb475",
+                "reference": "c8370a5be60d81c14d1c1686f42dff2635ffb475",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=5.4.0"
+            },
+            "require-dev": {
+                "illuminate/database": "4.2.*",
+                "illuminate/events": "4.2.*",
+                "illuminate/session": "4.2.*",
+                "illuminate/support": "4.2.*",
+                "illuminate/validation": "4.2.*",
+                "mockery/mockery": "0.9.*",
+                "orchestra/messages": "2.2.*",
+                "patchwork/utf8": "1.1.*"
+            },
+            "suggest": {
+                "laravel/framework": "Allow using orchestra/support component outside of Orchestra Platform 2",
+                "orchestra/foundation": "Allow using orchestra/support with Orchestra Platform 2",
+                "orchestra/messages": "Allow using Messages component"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-master": "2.3-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Orchestra\\Support\\": "src/Support/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Mior Muhammad Zaki",
+                    "email": "crynobone@gmail.com",
+                    "homepage": "https://github.com/crynobone"
+                }
+            ],
+            "description": "Support Component for Orchestra Platform 2",
+            "homepage": "http://orchestraplatform.com/docs/latest/components/support/",
+            "keywords": [
+                "laravel",
+                "orchestra-platform",
+                "orchestral",
+                "utilities",
+                "validator"
+            ],
+            "time": "2014-08-17 04:42:49"
         },
         {
             "name": "patchwork/utf8",
@@ -1625,20 +1750,11 @@
             "time": "2014-07-28 13:20:46"
         }
     ],
-    "packages-dev": [
-
-    ],
-    "aliases": [
-
-    ],
+    "packages-dev": [],
+    "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": [
-
-    ],
-    "platform": [
-
-    ],
-    "platform-dev": [
-
-    ]
+    "stability-flags": [],
+    "prefer-stable": false,
+    "platform": [],
+    "platform-dev": []
 }
