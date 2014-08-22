@@ -39,8 +39,7 @@ Route::filter('auth', function()
 		if (Request::ajax()) {
 			return Response::make('Unauthorized', 401);
 		} else {
-			return Redirect::to('auth/login')->with('flash_error', 'You must be logged in to view this page!');
-// 			return Redirect::to('auth/login');
+			return Redirect::to('auth/login')->with('flash_error', 'You must be logged in to view this page! ' . Request::path());
 		}
 	}
 });
@@ -64,7 +63,7 @@ Route::filter('auth.basic', function()
 
 Route::filter('guest', function()
 {
-	if (Auth::check()) return Redirect::to('/profile')->with('flash_notice', 'You are already logged in!');
+	if (Auth::check()) return Redirect::to('profile')->with('flash_notice', 'You are already logged in! ' . Request::path());
 });
 
 /*
