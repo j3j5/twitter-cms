@@ -26,8 +26,6 @@ class HomeController extends BaseController {
 
 	public function anyProfile() {
 
-		var_dump(Auth::check());
-
 		$this->afterFilter('log', array('only' => array('login')));
 		return View::make('home.profile');
 	}

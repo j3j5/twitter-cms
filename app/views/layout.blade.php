@@ -6,12 +6,12 @@
 		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1">
 
-		<link rel="icon" type="image/gif" href="/favicon.ico" />
+<!-- 		<link rel="icon" type="image/gif" href="/favicon.ico" /> -->
 
 		{{ Asset::container('header')->styles(); }}
 		{{ Asset::container('header')->scripts(); }}
 
-		<title>Birras.today... WHERE?</title>
+		<title>Twitter.CMS</title>
 
 	</head>
 	<body>
