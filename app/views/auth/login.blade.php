@@ -3,6 +3,8 @@
 @section('content')
 	<h1>Login</h1>
 
+	<a href="/auth/social/twitter"><button>Sign in with Twitter</button></a>
+
 	{{ Form::open( array('url' => 'auth/login', 'method' => 'POST', 'class' => 'form-horizontal') ) }}
 		<fieldset>
 			<!-- username field -->
