@@ -5,7 +5,8 @@
 	"license": "MIT",
 	"require": {
 		"laravel/framework": "4.2.*",
-		"orchestra/asset": "2.2.*"
+		"orchestra/asset": "2.2.*",
+		"thujohn/twitter": "dev-master"
 	},
 	"autoload": {
 		"classmap": [
