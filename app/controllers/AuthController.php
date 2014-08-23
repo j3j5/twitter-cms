@@ -137,6 +137,8 @@ class AuthController extends BaseController {
 				$sign_in_twitter = TRUE;
 				$force_login = FALSE;
 				$url = 'http://' . $_SERVER['HTTP_HOST'] . '/auth/callback';
+				$config = array('token' => '', 'secret' => '');
+				Twitter::set_new_config($config);
 				$token = Twitter::getRequestToken($url);
 				if( isset( $token['oauth_token_secret'] ) ) {
 					$url = Twitter::getAuthorizeURL($token, $sign_in_twitter, $force_login);
@@ -144,7 +146,6 @@ class AuthController extends BaseController {
 					Session::put('oauth_state', 'start');
 					Session::put('oauth_request_token', $token['oauth_token']);
 					Session::put('oauth_request_token_secret', $token['oauth_token_secret']);
-
 					return Redirect::to($url);
 				}
 				break;
