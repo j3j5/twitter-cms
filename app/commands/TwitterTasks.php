@@ -219,7 +219,10 @@ class TwitterTasks extends Command {
 					'title' => $title,
 					'link' => $link,
 					'image' => $image,
-					);
+					'created_from_prov' => 'twitter',
+					'created_from_msg' => $message->id_str,
+					'created_at' => date('Y-m-d H:i:s', strtotime($message->created_at)),
+				);
 				try {
 					$post =  Post::create($post_info);
 				} catch(PDOException $pdo) {
