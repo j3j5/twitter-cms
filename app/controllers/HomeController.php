@@ -20,8 +20,10 @@ class HomeController extends BaseController {
 		$this->beforeFilter('auth', array('only', 'anyProfile'));
 	}
 
-	public function anyIndex(){
-		return View::make('home.index')->with('logged_in', Auth::check());
+	public function anyIndex() {
+		$posts = Auth::user()->posts()->get();
+		$data = array('posts' => $posts);
+		return View::make('home.index', $data);
 	}
 
 	public function anyProfile() {
