@@ -27,7 +27,8 @@ class CreateProfilesTable extends Migration {
 
 			$table->timestamps();
 			$table->index('user_id');
-			$table->unique(array('provider', 'social_id'));
+			$table->unique(array('provider', 'social_id')); // Primary key
+			$table->unique(array('provider', 'user_id')); // Max 1 profile per network and per user
 		});
 	}
 
