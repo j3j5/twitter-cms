@@ -44,7 +44,17 @@ class TwitterTasks extends Command {
 			'808653950', // @0001Julio
 			'808800859', // @0002Julio
 		);
+		$this->allowed_people = '*';
 		return $this->allowed_people;
+	}
+
+	private function get_last_processed($task, $user_id, $provider) {
+		///TODO: Add storage for it
+		$task = SocialTask::where('provider', '=', $provider)->where('user_id', '=', $user_id)->where('task', '=', $task	)->first();
+		if($task) {
+			$this->mention_last_proccesed = $task->last_processed;
+		}
+		return $task;
 	}
 
 	/**
@@ -67,12 +77,6 @@ class TwitterTasks extends Command {
 		}
 	}
 
-	private function get_last_processed($social_profile) {
-		///TODO: Add storage for it
-		$this->mention_last_proccesed = FALSE;
-		return $this->mention_last_proccesed;
-	}
-
 	private function mentions_task($user) {
 		// Set the user key on mentions objects
 		$this->user_key = 'user';
@@ -86,9 +90,16 @@ class TwitterTasks extends Command {
 			$this->info("Processing " . $user->username);
 		}
 
-		$this->get_allowed_users($twitter_profile->social_id, $twitter_profile->provider);
+		///TODO: Implement proper admin list
+		$this->get_allowed_users($user->id, $twitter_profile->provider);
 
-		$task = $this->get_last_processed($twitter_profile->social_id, $twitter_profile->provider);
+		$task = $this->get_last_processed('mentions', $user->id, $twitter_profile->provider);
+		if(!is_object($task)) {
+			$task = new SocialTask;
+			$task->provider = 'twitter';
+			$task->user_id = $user->id;
+			$task->task = 'mentions';
+		}
 		$options = array(
 			'count' => 200,
 			'include_rts' => false,
@@ -112,39 +123,120 @@ class TwitterTasks extends Command {
 		if(is_array($result) && !empty($result)) {
 			$first = TRUE;
 			foreach($result AS $mention) {
-				$this->process_message($mention, $first, $task);
+				$this->process_twitter_message($mention, $first, $task, $twitter_profile);
 			}
 		}
 	}
 
-	protected function process_message(&$message, &$first, &$task) {
+	protected function process_twitter_message(&$message, &$first, &$task, &$profile) {
 		// Next call will retrieve from this last id on
 
 		if($first) {
-// 			$task->last_id = $message['id_str'];
-// 			$this->info(print_r($message, TRUE)); exit;
 			$this->info("Latest ID: " . $message->id_str);
+			$task->last_processed = $message->id_str;
 // 			$task->save();
 			$first = FALSE;
 		}
 
-		// If the user is not on the allowd admins, ignore the mention
-		if(isset($message->{$this->user_key}->screen_name)) {
-			if(!in_array($message->{$this->user_key}->id_str, $this->allowed_people)) {
-				$this->info('User wants to add an event but it\'s not allowed: ' . $message->{$this->user_key}->screen_name . ' from ' . $this->twitter_task);
+		// If the owner decided to allow everybody $this->allowed_people will be '*'
+		if(!is_string($this->allowed_people)) {
+			// If the user is not on the allowd admins, ignore the mention
+			if(isset($message->{$this->user_key}->screen_name)) {
+				if(!in_array($message->{$this->user_key}->id_str, $this->allowed_people)) {
+					$this->error('User wants to add an event but it\'s not allowed: ' . $message->{$this->user_key}->screen_name . ' from ' . $this->twitter_task);
+					return FALSE;
+				}
+			} else {
+				$this->info(__LINE__ . ': Weird!! no user owning the mention?: ' . print_r($message, TRUE));
 				return FALSE;
 			}
-		} else {
-			$this->info('Weird!! no user owning the mention?: ' . print_r($message, TRUE));
-			return FALSE;
+		} else if($this->allowed_people !== '*') {
+			if(isset($message->{$this->user_key}->screen_name)) {
+				if($message->{$this->user_key}->id_str !== $this->allowed_people) {
+					$this->error('User wants to add an event but it\'s not allowed: ' . $message->{$this->user_key}->screen_name . ' from ' . $this->twitter_task);
+					return FALSE;
+				}
+			} else {
+				$this->info(__LINE__ . ': Weird!! no user owning the mention?: ' . print_r($message, TRUE));
+				return FALSE;
+			}
 		}
-
 		// Seems to be a request from a valid user, parse it
 		$this->info('Tweet received: ' . $message->text);
+
+// 		$this->info(print_r($message, TRUE));
+		$data = $this->process_message_text($message, 'mentions', $profile);
+// 		$this->info('Done!');
+// 		exit;
 	}
 
 
+	private function process_message_text($message, $type, &$profile) {
+		$matches = array();
+		switch ($type) {
+			case 'mentions':
+				if(mb_strpos($message->text, '@'. $profile->social_username) !== 0) {
+					$this->error('Incorrect format, @' . $profile->social_username . ' must be in front.');
+					$data['error'] = 'Hey!! You MUST mentioned me with my name first in the tweet. Don\'t mess with me!';
+					return $data;
+				} else {
+					$text = mb_substr($message->text, mb_strlen('@'. $profile->social_username));
+					$this->info('Text to process: ' . $text);
+// 					$this->info(print_r($message, TRUE));
+				}
+			case 'DMs':
+				if(isset($message->entities->urls) && !empty($message->entities->urls)) {
+					$this->info("There're URLs.");
+					// URLS
+					$url_ent = reset($message->entities->urls);
+					$image = NULL;
+					$link = $url_ent->expanded_url;
+					$title = trim(str_replace($url_ent->url, '', $text));
+				} elseif(isset($message->entities->media) && !empty($message->entities->media)) {
+					$this->info("There's media.");
+					// Pictures
+					$url_ent = reset($message->entities->media);
+					$image = NULL;
+					if($url_ent->type == 'photo') {
+						$image = $url_ent->media_url;
+					}
+					$link = $url_ent->expanded_url;
+					$title = trim(str_replace($url_ent->url, '', $text));
+				} else {
+					$this->info('No entities to parse');
+					// Rest or nothing
+					$image = NULL;
+					$link = NULL;
+					$title = trim($text);
+				}
+				$this->info('Processed!!');
 
+				$slug = str_replace(' ', '-', mb_substr($title, 0, 20)) . time();
+				$post_info = array(
+					'owner_id' => $profile->user_id,
+					'author' => '@' . $message->user->screen_name,
+					'slug' => $slug,
+					'title' => $title,
+					'link' => $link,
+					'image' => $image,
+					);
+				try {
+					$post =  Post::create($post_info);
+				} catch(PDOException $pdo) {
+				    var_dump($pdo->getMessage());
+				    $post_info['slug'] .= microtime();
+				    $post =  Post::create($post_info);
+				    sleep(1);
+				}
+
+				$data = array('message' => 'Post ' . $post->id . ' added successfully.');
+				break;
+			default:
+				$this->info('default');
+				break;
+		}
+		return $data;
+	}
 
 
 
