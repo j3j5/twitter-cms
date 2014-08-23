@@ -138,7 +138,7 @@ class AuthController extends BaseController {
 				$force_login = FALSE;
 				$url = 'http://' . $_SERVER['HTTP_HOST'] . '/auth/callback';
 				$token = Twitter::getRequestToken($url);
-				if( isset( $token['oauth_token_secret'] ) && Twitter::get_http_code() == 200 ) {
+				if( isset( $token['oauth_token_secret'] ) ) {
 					$url = Twitter::getAuthorizeURL($token, $sign_in_twitter, $force_login);
 
 					Session::put('oauth_state', 'start');
@@ -177,7 +177,7 @@ class AuthController extends BaseController {
 
 			// getAccessToken() will reset the token for you
 			$token = Twitter::getAccessToken( $oauth_verifier );
-			if( !isset( $token['oauth_token_secret'] ) OR Twitter::get_http_code() != 200 ) {
+			if( !isset( $token['oauth_token_secret'] ) OR empty($token['oauth_token_secret'])) {
 				return Redirect::to('auth/login')->with('flash_error', 'We could not log you in on Twitter.');
 			}
 
