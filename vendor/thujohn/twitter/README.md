@@ -13,7 +13,7 @@ Add `thujohn/twitter` to `composer.json`.
 ```
 "thujohn/twitter": "dev-master"
 ```
-    
+
 Run `composer update` to pull down the latest version of Twitter.
 
 Now open up `app/config/app.php` and add the service provider to your `providers` array.

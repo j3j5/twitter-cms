@@ -7,14 +7,10 @@ use Session;
 
 class Twitter extends tmhOAuth {
 
-	// Set log-levels for the possible http response codes
-	private $access_token;
-	private $access_token_secret;
-
 	/* Contains the last HTTP status code returned. */
 	private $http_code;
-	/* Contains the last API call. */
-	private $url;
+
+	private $default;
 
 	private function accessTokenURL()  { return 'oauth/access_token'; }
 	private function authenticateURL() { return 'https://api.twitter.com/oauth/authenticate'; }
@@ -23,30 +19,25 @@ class Twitter extends tmhOAuth {
 
 	public function __construct($config = array())
 	{
-		$default = array();
+		$this->default = array();
 
-		$default['consumer_key']    = Config::get('thujohn/twitter::CONSUMER_KEY');
-		$default['consumer_secret'] = Config::get('thujohn/twitter::CONSUMER_SECRET');
-		$default['token']           = Config::get('thujohn/twitter::ACCESS_TOKEN');
-		$default['secret']          = Config::get('thujohn/twitter::ACCESS_TOKEN_SECRET');
+		$this->default['consumer_key']    = Config::get('thujohn/twitter::CONSUMER_KEY');
+		$this->default['consumer_secret'] = Config::get('thujohn/twitter::CONSUMER_SECRET');
+		$this->default['token']           = Config::get('thujohn/twitter::ACCESS_TOKEN');
+		$this->default['secret']          = Config::get('thujohn/twitter::ACCESS_TOKEN_SECRET');
 
-		if (Session::has('access_token'))
-		{
-			$access_token = Session::get('access_token');
+		$this->default['use_ssl'] = Config::get('thujohn/twitter::USE_SSL');
+		$this->default['user_agent'] = 'TW-L4 '.parent::VERSION;
 
-			if (is_array($access_token) && isset($access_token['oauth_token']) && isset($access_token['oauth_token_secret']) && !empty($access_token['oauth_token']) && !empty($access_token['oauth_token_secret']))
-			{
-				$default['token']  = $access_token['oauth_token'];
-				$default['secret'] = $access_token['oauth_token_secret'];
-			}
-		}
-
-		$default['use_ssl'] = Config::get('thujohn/twitter::USE_SSL');
-		$default['user_agent'] = 'TW-L4 '.parent::VERSION;
-
-		$config = array_merge($default, $config);
+		$config = array_merge($this->default, $config);
 
 		parent::__construct($config);
+	}
+
+	public function set_new_config($config) {
+		// The consumer key and secret must always be included when reconfiguring
+		$config = array_merge($this->default, $config);
+		parent::reconfigure($config);
 	}
 
 	public function get_http_code() {
@@ -94,8 +85,8 @@ class Twitter extends tmhOAuth {
 			$get_parameters = $response['response'];
 			$token = array();
 			parse_str($get_parameters, $token);
-			\Log::debug('Reconfiguring...' . print_r($token,TRUE));
-			parent::reconfigure(array('token' => $token['oauth_token'], 'secret' => $token['oauth_token_secret']));
+			// Set the received token on the OAuth config
+			$this->set_new_config(array('token' => $token['oauth_token'], 'secret' => $token['oauth_token_secret']));
 			return $token;
 		}
 		return FALSE;
