@@ -2,14 +2,6 @@
 
 // You can find the keys here : https://dev.twitter.com/
 
-/*
- * private function authenticateURL() { return 'https://api.twitter.com/oauth/authenticate'; }
-	private function authorizeURL()    { return 'https://api.twitter.com/oauth/authorize'; }
-
-	private function accessTokenURL()  { return 'oauth/access_token'; }
-	private function requestTokenURL() { return 'oauth/request_token'; }
- */
-
 return array(
 	'API_URL'             => 'api.twitter.com',
 	'API_VERSION'         => '1.1',
