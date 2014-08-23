@@ -128,6 +128,9 @@ class AuthController extends BaseController {
 		return View::make('auth.login')->with('flash_error', 'Snap! We could not sign you in. Username or password did not match.')->withInput();
 	}
 
+	/**
+	 * Provide a login url for social services (only Twitter for now)
+	 */
 	public function anySocial($provider = '') {
 		switch($provider) {
 			case 'twitter':
@@ -163,32 +166,31 @@ class AuthController extends BaseController {
 			$request_token = array(
 				'token' => Session::get('oauth_request_token'),
 				'secret' => Session::get('oauth_request_token_secret'),
-				);
-				$api = new TwitterLib($request_token);
+			);
 
-				$oauth_verifier = FALSE;
-				if(Input::has('oauth_verifier')) {
-					$oauth_verifier = Input::get('oauth_verifier');
-				}
-				// Retry 5 times max. in case Twitter doesn't respond on the first one
-				$token = $api->getAccessToken( $oauth_verifier );
-				if( !isset( $token['oauth_token_secret'] ) OR $api->get_http_code() != 200 ) {
-					return Redirect::to('auth/login')->with('flash_error', 'We could not log you in on Twitter.');
-				}
+			Twitter::set_new_config($request_token);
 
-				unset($api);
-				$api = new TwitterLib(array('token' => $token['oauth_token'], 'secret' => $token['oauth_token_secret']));
+			$oauth_verifier = FALSE;
+			if(Input::has('oauth_verifier')) {
+				$oauth_verifier = Input::get('oauth_verifier');
+			}
 
-				$credentials = $api->query('account/verify_credentials');
-				if( is_object( $credentials ) && !isset( $credentials->error ) ) {
-					$credentials->oauth_token = $token['oauth_token'];
-					$credentials->oauth_token_secret = $token['oauth_token_secret'];
-					$profile = $this->findTwitterProfile($credentials);
-					if($profile) {
-						return Redirect::to('/profile')->with('flash_notice', "Congrats! You've successfully signed in!");
-					}
+			// getAccessToken() will reset the token for you
+			$token = Twitter::getAccessToken( $oauth_verifier );
+			if( !isset( $token['oauth_token_secret'] ) OR Twitter::get_http_code() != 200 ) {
+				return Redirect::to('auth/login')->with('flash_error', 'We could not log you in on Twitter.');
+			}
+
+			$credentials = Twitter::query('account/verify_credentials');
+			if( is_object( $credentials ) && !isset( $credentials->error ) ) {
+				$credentials->oauth_token = $token['oauth_token'];
+				$credentials->oauth_token_secret = $token['oauth_token_secret'];
+				$profile = $this->findTwitterProfile($credentials);
+				if($profile) {
+					return Redirect::to('/profile')->with('flash_notice', "Congrats! You've successfully signed in!");
 				}
-				return Redirect::to('/auth/login')->with('flash_error', 'Crab! Something went wrong while signing you up!');
+			}
+			return Redirect::to('/auth/login')->with('flash_error', 'Crab! Something went wrong while signing you up!');
 		}
 	}
 
