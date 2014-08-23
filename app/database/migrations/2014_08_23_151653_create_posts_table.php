@@ -22,6 +22,8 @@ class CreatePostsTable extends Migration {
 			$table->text('content');
 			$table->string('link', 255)->nullable();
 			$table->string('image', 255)->nullable();
+			$table->string('created_from_prov', 100);
+			$table->string('created_from_msg', 255);
 
 			$table->timestamps();
 			$table->unique('slug');
