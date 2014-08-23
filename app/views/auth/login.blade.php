@@ -3,10 +3,17 @@
 @section('content')
 	<h1>Login</h1>
 
-	<a href="/auth/social/twitter"><button>Sign in with Twitter</button></a>
+
 
 	{{ Form::open( array('url' => 'auth/login', 'method' => 'POST', 'class' => 'form-horizontal') ) }}
 		<fieldset>
+			<div class="form-group">
+				<div class="col-xs-offset-2 col-xs-10">
+					<a class="btn btn-primary btn-lg" href="/auth/social/twitter"><i class="fa fa-twitter"></i>Sign in with Twitter</a>
+				</div>
+			</div>
+
+
 			<!-- username field -->
 			<div class="form-group">
 				{{ Form::label('username', 'Username', array('class' => 'control-label col-xs-2', 'for' => 'username')) }}
@@ -29,7 +36,7 @@
 			<!-- password field -->
 			<div class="form-group">
 			{{ Form::label('remember_me', 'Remember me', array('class' => 'control-label col-xs-offset-2', 'for' => 'remember_me')) }}
-			<div class="col-xs-10">
+			<div class="col-xs-offset-2 col-xs-10">
 					<div class="input-group">
 						{{ Form::checkbox('remember_me', '1', false) }}
 					</div>

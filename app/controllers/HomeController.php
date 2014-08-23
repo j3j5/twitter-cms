@@ -21,8 +21,9 @@ class HomeController extends BaseController {
 	}
 
 	public function anyIndex() {
-		$posts = Auth::user()->posts()->get();
+		$posts = Auth::user()->posts()->paginate(10);
 		$data = array('posts' => $posts);
+
 		return View::make('home.index', $data);
 	}
 

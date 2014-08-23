@@ -2,19 +2,16 @@
 
 @section('content')
 	<div class="container">
-		Hello, this is the landing page.
-		<ul>
+		<div class="posts">
 		@foreach($posts AS $post)
-			<li>
-
-			@if(!empty($post->link))
-				<a href="{{{ $post->link }}}" target="_blank">
-			@endif
-				<p>{{ $post->title }}</p>
-			@if(!empty($post->link))
-				</a>
-			@endif
-
+			<div class="post clearfix">
+				<div class="title">
+					@if(!empty($post->link))
+						<a href="{{{ $post->link }}}" target="_blank"> {{ $post->title }} </a>
+					@else
+						{{ $post->title }}
+					@endif
+				</div>
 			@if(!empty($post->content))
 				{{{ $post->content }}}
 			@endif
@@ -22,8 +19,27 @@
 			@if(!empty($post->image))
 				<img src="{{{ $post->image }}}">
 			@endif
-			</li>
+
+			@if(!empty($post->author))
+				<div class="author"> By
+				@if($post->created_from_prov == 'twitter')
+					{{ Twitter::linkify($post->author) }}
+				@else
+					{{{ $post->author }}}
+				@endif
+				  <span class="glyphicon glyphicon-hand-right"></span>  
+				@if($post->created_from_prov == 'twitter')
+					<a href="{{ Twitter::linkUser($post->author) . '/status/' . $post->created_from_msg }}" target="_blank"><span class="date"> {{{ Twitter::ago(strtotime($post->created_at)) }}} </span></a>
+				@else
+				<span class="date"> {{{ Twitter::ago(strtotime($post->created_at)) }}} </span>
+				@endif
+				</div>
+			@endif
+			</div>
 		@endforeach
-		</ul>
+		</div>
+		<div class="page">
+			{{ $posts->links() }}
+		</div>
 	</div>
 @endsection

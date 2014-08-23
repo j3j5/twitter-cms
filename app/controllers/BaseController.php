@@ -3,7 +3,14 @@
 class BaseController extends Controller {
 
 	public function __construct() {
+		Asset::container('header')->style('bootstrap_css', "//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css");
+		Asset::container('header')->style('font_awesome', "//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css");
+		Asset::container('header')->style('open_sans', "//fonts.googleapis.com/css?family=Open+Sans:400,800,700,600,600italic,400italic");
+		Asset::container('header')->style('global_css', "css/global.css");
 
+		Asset::container('footer')->script('jquery', '//code.jquery.com/jquery-1.11.1.min.js');
+		Asset::container('footer')->script('bootstrap_js', "//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js");
+		Asset::container('footer')->add('global_js', "js/global.js");
 	}
 
 	public function createValidator($inputs, $rules) {

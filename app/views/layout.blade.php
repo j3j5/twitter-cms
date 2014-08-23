@@ -11,12 +11,13 @@
 		{{ Asset::container('header')->styles(); }}
 		{{ Asset::container('header')->scripts(); }}
 
-		<title>Twitter.CMS</title>
+		<title>{{{ Config::get('app.project_name') }}}</title>
 
 	</head>
 	<body>
+		@include('navbar')
 
-		<div id="mainContent">
+		<div id="mainContent" class="container main">
 				<!-- check for flash notification message -->
 				@if(Session::has('flash_notice'))
 					<div id="flash_notice" class="alert alert-success my-alert">
@@ -27,7 +28,7 @@
 
 				<!-- check for login error flash var -->
 				@if (Session::has('flash_error'))
-					<div id="flash_error" class="alert alert-dangermy-alert" >
+					<div id="flash_error" class="alert alert-danger my-alert" >
 						<button class="close-button close-button16 flash-close">@include('objects.close')</button>
 						{{ Session::get('flash_error') }}
 						</div>
