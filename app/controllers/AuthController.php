@@ -15,9 +15,7 @@ class AuthController extends BaseController {
 	/**
 	 * Redirect from the root of the controller
 	 *
-	 * @param p1
-	 *
-	 * @return return
+	 * @return Redirect to profile or login page
 	 *
 	 * @author Julio Foulquié <julio@tnwlabs.com>
 	 */
@@ -26,6 +24,108 @@ class AuthController extends BaseController {
 			Redirect::to('profile');
 		}
 		return Redirect::to('auth/login');
+	}
+
+	/**
+	 * Registration Page
+	 */
+	public function getRegister() {
+		return View::make('auth.register');
+	}
+
+	/**
+	 * Login Page
+	 */
+	public function getLogin() {
+		return View::make('auth.login');
+	}
+
+	/**
+	 * Proccess input to register a user
+	 *
+	 * @return Redirects to /profile on success
+	 *
+	 * @author Julio Foulquié <julio@tnwlabs.com>
+	 */
+	public function postRegister() {
+		// it a POST Request, you should validate the form
+		$inputs = array('username', 'password', 'password2', 'email');
+		$rules = array(
+			'required|alpha_dash', // username
+			'required|alpha_dash', // password
+			'required|alpha_dash', // password2
+			'email', // password2
+		);
+		$this->createValidator($inputs, $rules);
+
+		$username =  strtolower(Input::get('username'));
+		if(strcmp(Input::get('password'), Input::get('password2')) !== 0) {
+			return Redirect::to('register')
+			->with('flash_error', "Your passwords didn't match.")
+			->withInput();
+		}
+
+		User::create(array(
+			'username' => $username,
+			'password' => Hash::make(Input::get('password')),
+			'name' => Input::get('name'),
+			'email' => Input::get('email'),
+			'passwordEnabled' => 1,
+		));
+		return Redirect::to('profile')->with('flash_notice', 'Yeeehaaa! You have signed up!');
+	}
+
+
+	/**
+	 * Login with user/pass combination
+	 *
+	 * @return Redirects to profile or to getLogin in case of error.
+	 *
+	 * @author Julio Foulquié <julio@tnwlabs.com>
+	 */
+	public function postLogin() {
+		$inputs = array('username', 'password', 'remember_me');
+		$rules = array(
+			'required|alpha_dash', // username
+			'required|alpha_dash', // password
+			'boolean', // remember_me
+		);
+		$validator = $this->createValidator($inputs, $rules);
+		if($validator->fails()) {
+			$message = "Doh! Something went chiviri: <ul> ";
+			foreach ($validator->messages()->all() as $msg) {
+				$message .= '<li>' . $msg . '</li>';
+			}
+			$message .= '</ul>';
+			return Redirect::to('auth/login')->with('flash_error', $message)->withInput();
+		}
+
+		// it a POST Request, you should validate the form
+		$login = array(
+			'username' => Input::get('username'),
+			'password' => Input::get('password')
+		);
+
+		if(Input::get('remember_me', FALSE)) {
+			$remember_me = TRUE;
+		} else {
+			$remember_me = FALSE;
+		}
+
+		$result = Auth::attempt($login, $remember_me);
+		if ($result) {
+			// get logged user id.
+			if(!Auth::user()->passwordEnabled) {
+				Auth::logout();
+				View::make('auth.login')
+					->with('flash_error',
+							"Caramba! The user you're trying to log in with has disabled the
+							login with password. Try login with your social profiles or <a href=\"mailto:" . Config::get('app.support.email') . "\">drop us
+							an email</a> with your problem.");
+			}
+			return Redirect::to('profile');
+		}
+		return View::make('auth.login')->with('flash_error', 'Snap! We could not sign you in. Username or password did not match.')->withInput();
 	}
 
 	public function anySocial($provider = '') {
@@ -63,112 +163,33 @@ class AuthController extends BaseController {
 			$request_token = array(
 				'token' => Session::get('oauth_request_token'),
 				'secret' => Session::get('oauth_request_token_secret'),
-			);
-			$api = new TwitterLib($request_token);
+				);
+				$api = new TwitterLib($request_token);
 
-			$oauth_verifier = FALSE;
-			if(Input::has('oauth_verifier')) {
-				$oauth_verifier = Input::get('oauth_verifier');
-			}
-			// Retry 5 times max. in case Twitter doesn't respond on the first one
-			$token = $api->getAccessToken( $oauth_verifier );
-			if( !isset( $token['oauth_token_secret'] ) OR $api->get_http_code() != 200 ) {
-				return Redirect::to('auth/login')->with('flash_error', 'We could not log you in on Twitter.');
-			}
-
-			unset($api);
-			$api = new TwitterLib(array('token' => $token['oauth_token'], 'secret' => $token['oauth_token_secret']));
-
-			$credentials = $api->query('account/verify_credentials');
-			if( is_object( $credentials ) && !isset( $credentials->error ) ) {
-				$credentials->oauth_token = $token['oauth_token'];
-				$credentials->oauth_token_secret = $token['oauth_token_secret'];
-				$profile = $this->findTwitterProfile($credentials);
-				if($profile) {
-					return Redirect::to('/profile')->with('flash_notice', "Congrats! You've successfully signed in!");
+				$oauth_verifier = FALSE;
+				if(Input::has('oauth_verifier')) {
+					$oauth_verifier = Input::get('oauth_verifier');
 				}
-			}
-			return Redirect::to('/auth/login')->with('flash_error', 'Crab! Something went wrong while signing you up!');
+				// Retry 5 times max. in case Twitter doesn't respond on the first one
+				$token = $api->getAccessToken( $oauth_verifier );
+				if( !isset( $token['oauth_token_secret'] ) OR $api->get_http_code() != 200 ) {
+					return Redirect::to('auth/login')->with('flash_error', 'We could not log you in on Twitter.');
+				}
+
+				unset($api);
+				$api = new TwitterLib(array('token' => $token['oauth_token'], 'secret' => $token['oauth_token_secret']));
+
+				$credentials = $api->query('account/verify_credentials');
+				if( is_object( $credentials ) && !isset( $credentials->error ) ) {
+					$credentials->oauth_token = $token['oauth_token'];
+					$credentials->oauth_token_secret = $token['oauth_token_secret'];
+					$profile = $this->findTwitterProfile($credentials);
+					if($profile) {
+						return Redirect::to('/profile')->with('flash_notice', "Congrats! You've successfully signed in!");
+					}
+				}
+				return Redirect::to('/auth/login')->with('flash_error', 'Crab! Something went wrong while signing you up!');
 		}
-	}
-
-	/**
-	 * Registration Page
-	 */
-	public function getRegister() {
-		return View::make('auth.register');
-	}
-
-	/**
-	 * Proccess input to register a user
-	 *
-	 * @return Redirects to /profile on success
-	 *
-	 * @author Julio Foulquié <julio@tnwlabs.com>
-	 */
-	public function postRegister() {
-		// it a POST Request, you should validate the form
-
-		$username =  strtolower(Input::get('username'));
-		if(strcmp(Input::get('password'), Input::get('password2')) !== 0) {
-			return Redirect::to('register')
-			->with('flash_error', "Your password didn't match.")
-			->withInput();
-		}
-
-		User::create(array(
-			'username' => $username,
-			'password' => Hash::make(Input::get('password')),
-			'name' => Input::get('name'),
-			'email' => Input::get('email'),
-			'passwordEnabled' => 1,
-		));
-		return Redirect::to('profile')->with('flash_notice', 'Yeeehaaa! You have signed up!');
-	}
-
-
-
-	/**
-	 * Login Page
-	 */
-	public function getLogin() {
-		return View::make('auth.login');
-	}
-
-	/**
-	 * Login with user/pass combination
-	 *
-	 * @return Redirects to profile or to getLogin in case of error.
-	 *
-	 * @author Julio Foulquié <julio@tnwlabs.com>
-	 */
-	public function postLogin() {
-		// it a POST Request, you should validate the form
-		$login = array(
-			'username' => Input::get('username'),
-			'password' => Input::get('password')
-		);
-
-		if(Input::get('remember_me', FALSE)) {
-			$remember_me = TRUE;
-		} else {
-			$remember_me = FALSE;
-		}
-
-		$result = Auth::attempt($login, $remember_me);
-		if ($result) {
-			// get logged user id.
-			if(!Auth::user()->passwordEnabled) {
-				Auth::logout();
-				View::make('auth.login')
-					->with('flash_error',
-							"Caramba! The user you're trying to log in with has disabled the
-							login with password. Try login with your social profiles or <a href=\"mailto:" . Config::get('app.support.email') . "\">drop us
-							an email</a> with your problem.");
-			}
-			return Redirect::to('profile');
-		}
-		return View::make('auth.login')->with('flash_error', 'Snap! We could not sign you in. Username or password did not match.')->withInput();
 	}
 
 	/**
