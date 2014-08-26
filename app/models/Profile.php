@@ -3,7 +3,7 @@
 class Profile extends Eloquent {
 
 	protected $table = 'social_profiles';
-	protected $key = 'social_id';
+	protected $primaryKey = 'social_id';
 	public $timestamps = TRUE;
 
 	public function user() {

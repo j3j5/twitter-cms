@@ -6,9 +6,13 @@ class TwitterSetting extends Eloquent {
 	public $primaryKey = 'profile_id';
 
 	public $timestamps = TRUE;
-	protected $fillable = array('profile_id');
+	protected $fillable = array('profile_id', 'user_id');
 
 	public function profile() {
 		return $this->hasOne('Profile');
+	}
+
+	public function user() {
+		return $this->hasOne('User', 'id', 'user_id' );
 	}
 }

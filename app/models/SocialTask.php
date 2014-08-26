@@ -3,7 +3,7 @@
 class SocialTask extends Eloquent {
 
 	protected $table = 'social_tasks';
-	protected $key = 'task';
+	protected $primaryKey = 'task';
 	public $timestamps = TRUE;
 
 	public function user() {
