@@ -23,7 +23,7 @@ class HomeController extends BaseController {
 
 	public function anyIndex() {
 		if(Auth::check()) {
-			$posts = Auth::user()->posts()->paginate(10);
+			$posts = Auth::user()->posts()->orderby('created_at', 'DESC')->simplePaginate(10);
 			$data = array('posts' => $posts);
 			return View::make('home.index', $data);
 		} else {
