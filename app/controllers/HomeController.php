@@ -38,11 +38,12 @@ class HomeController extends BaseController {
 	}
 
 	public function postSettings() {
-		$inputs = array('profile_id', 'user_tweets', 'user_rts', 'user_favs', 'mentions');
+		$inputs = array('profile_id', 'user_tweets', 'user_rts', 'user_favs', 'user_DMs', 'mentions');
 		$rules = array(
 			'required|numeric', // profile_id
 			'boolean', // user_tweets
 			'boolean', // user_rts
+			'boolean', // user_DMs
 			'boolean', // user_favs
 			'boolean', // mentions
 		);
@@ -64,6 +65,7 @@ class HomeController extends BaseController {
 		$settings->user_tweets = Input::get('user_tweets', 0);
 		$settings->user_rts = Input::get('user_rts', 0);
 		$settings->user_favs = Input::get('user_favs', 0);
+		$settings->user_DMs = Input::get('user_DMs', 0);
 		$settings->mentions = Input::get('mentions', 0);
 
 		$result = $settings->save();
