@@ -284,7 +284,7 @@ class AuthController extends BaseController {
 		$settings = $profile->twitterSettings()->first();
 		if(empty($settings)) {
 			Log::info('Failed to find settings, creting new ones.');
-			$settings = $this->createDefaultTwitterSettings($profile->social_id);
+			$settings = $this->createDefaultTwitterSettings($user->id, $profile->social_id);
 		}
 
 		if (!$result_profile) {
@@ -301,8 +301,8 @@ class AuthController extends BaseController {
 		return $profile;
 	}
 
-	private function createDefaultTwitterSettings($profile_id) {
-		return TwitterSetting::create(array('profile_id' => $profile_id));
+	private function createDefaultTwitterSettings($user_id, $profile_id) {
+		return TwitterSetting::create(array('profile_id' => $profile_id, 'user_id' => $user_id));
 	}
 
 	private function createTwitterProfile($social_user, $user) {
