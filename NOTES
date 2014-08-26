@@ -1,0 +1,2 @@
+- The only way to get 'retweeted_by_me' statuses is by retrieving the home_timeline all together and parsing out.
+	Thus, users having their own timeline to be posted or users only with RTs will be parsed on the same task.
