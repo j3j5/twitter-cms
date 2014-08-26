@@ -21,18 +21,28 @@ class TwitterTasks extends Command {
 	protected $description = 'Run any of the Twitter tasks (mentions, DMs...).';
 
 	private $allowed_people;
-	private $access_token;
-	private $access_secret;
-	private $api;
-	private $twitter_task;
 	private $last_processed;
+
+	/*
+	 * Some keys to share code within Twitter
+	 * tasks. We map the task to their function name,
+	 * settings column name, user key on the API object...
+	 */
+	private $twitter_task;
 	private $user_key;
-	private $task_calls = array(
-		'mentions' => 'getMentionsTimeline',
-		'favorites' => 'getFavorites',
-		'retweets' => 'getUserTimeline',
-		'user_tl' => 'getUserTimeline',
+	private $shard_tasks = array(
+		'user_tl',
+		'mentions',
+		'favorites',
+		'retweets',
+		'DMs',
 	);
+	private $task_calls;
+	private $task_settings;
+	private $task_require_admin;
+
+	private $modulo;
+	private $shard_file;
 
 	/**
 	 * Create a new command instance.
@@ -42,6 +52,27 @@ class TwitterTasks extends Command {
 	public function __construct()
 	{
 		parent::__construct();
+
+		$this->modulo = count($this->shard_tasks);
+		$this->shard_file = storage_path() .'/logs/twitter_task_shard';
+		$this->task_calls = array(
+			$this->shard_tasks[0]	=> 'getUserTimeline',
+			$this->shard_tasks[1]	=> 'getMentionsTimeline',
+			$this->shard_tasks[2]	=> 'getFavorites',
+			$this->shard_tasks[3]	=> 'getUserTimeline',
+			$this->shard_tasks[4]	=> 'getDmsIn',
+		);
+		$this->task_settings = array(
+			$this->shard_tasks[0]	=> 'user_tweets',
+			$this->shard_tasks[1]	=> 'user_rts',
+			$this->shard_tasks[2]	=> 'user_favs',
+			$this->shard_tasks[3]	=> 'mentions',
+			$this->shard_tasks[4]	=> 'user_DMs',
+		);
+		// Add the tasks which require a call to get_allowed_users()
+		$this->task_require_admin = array(
+			'mentions', 'DMs'
+		);
 	}
 
 	private function get_allowed_users($social_id, $provider) {
@@ -55,12 +86,34 @@ class TwitterTasks extends Command {
 	}
 
 	private function get_last_processed($task, $user_id, $provider) {
-		///TODO: Add storage for it
 		$task = SocialTask::where('provider', '=', $provider)->where('user_id', '=', $user_id)->where('task', '=', $task	)->first();
 		if($task) {
-			$this->mention_last_proccesed = $task->last_processed;
+			$this->last_processed = $task->last_processed;
 		}
 		return $task;
+	}
+
+	private function get_shard_twitter_task() {
+		if(!is_file($this->shard_file)) {
+			if(!is_writable(dirname($this->shard_file)) OR !touch($this->shard_file)) {
+				$this->error(
+					"Sorry, the folder " . dirname($this->shard_file) .
+					' is not writable or the file could not be created.'
+				);
+				exit;
+			}
+		}
+// 		$shard = trim(file_get_contents($this->shard_file));
+		$shard = 1;
+		if ($shard === FALSE OR ($shard + 1) >= $this->modulo) {
+			$shard = 0;
+		} else {
+			$shard++;
+		}
+// 		file_put_contents($this->shard_file, $shard);
+		$this->twitter_task = $this->shard_tasks[$shard];
+		$this->info("Shard: " . $shard . '; Task: ' . $this->twitter_task);
+		return $this->shard_tasks[$shard];
 	}
 
 	/**
@@ -70,14 +123,26 @@ class TwitterTasks extends Command {
 	 */
 	public function fire()
 	{
-		$users = User::all();
-		$task_name = $this->argument('taskName') . '_task';
-		foreach($users AS $user) {
-			switch($this->argument('taskName')) {
+		// Enable sharding
+		$this->get_shard_twitter_task();
+
+		$setting_profiles = TwitterSetting::where($this->task_settings[$this->twitter_task], '=', 1)->get();
+		if(empty($setting_profiles)) {
+			$this->info('No users were found for ' . $this->twitter_task . '. Bye!');
+			return;
+		}
+
+		$this->info("Processing " . count($setting_profiles) . " Twitter profiles for " . $this->twitter_task);
+
+		foreach($setting_profiles AS $prof) {
+			$user = $prof->user()->first();
+			switch($this->twitter_task) {
+				case "user_tl":
 				case "mentions":
 				case "favorites":
+				case "retweets":
 				case 'DMs':
-					$this->{$task_name}($user);
+					$this->{$this->twitter_task . '_task'}($user);
 					break;
 				default:
 					$this->error("Unknown task.");
@@ -87,13 +152,17 @@ class TwitterTasks extends Command {
 	}
 
 	private function DMs_task($user) {
-		$this->twitter_task = 'DMs';
 		$this->user_key = 'sender';
+		return;
 	}
 
-	private function favorites_task($user) {
+	private function RTs_task($user) {
 		$this->user_key = 'user';
-		$this->twitter_task = 'favorites';
+		return;
+	}
+
+	private function favorites_task(&$user) {
+		$this->user_key = 'user';
 
 		$twitter_profile = $user->profiles()->where('provider', '=', 'twitter')->first();
 		if(!isset($twitter_profile->access_token) OR empty($twitter_profile->access_token)) {
@@ -129,11 +198,12 @@ class TwitterTasks extends Command {
 			'format' => 'array',
 		);
 		Twitter::set_new_config($config);
-		$result = Twitter::getFavorites($options);
+		$endpoint_func = $this->task_calls[$this->twitter_task];
+		$result = Twitter::{$endpoint_func}($options);
 		if(is_array($result) && !empty($result)) {
 			$first = TRUE;
-			foreach($result AS $mention) {
-				$this->process_twitter_message($mention, $first, $task, $twitter_profile);
+			foreach($result AS $fav) {
+				$this->process_twitter_message($fav, $first, $task, $twitter_profile);
 			}
 		}
 	}
@@ -141,7 +211,6 @@ class TwitterTasks extends Command {
 	private function mentions_task($user) {
 		// Set the user key on mentions objects
 		$this->user_key = 'user';
-		$this->twitter_task = 'mentions';
 
 		$twitter_profile = $user->profiles()->where('provider', '=', 'twitter')->first();
 		if(!isset($twitter_profile->access_token) OR empty($twitter_profile->access_token)) {
@@ -151,7 +220,7 @@ class TwitterTasks extends Command {
 			$this->info("Processing " . $user->username);
 		}
 
-		///TODO: Implement proper admin list
+		///TODO: Implement proper in-house admin list
 		$this->get_allowed_users($user->id, $twitter_profile->provider);
 
 		$task = $this->get_last_processed('mentions', $user->id, $twitter_profile->provider);
@@ -196,10 +265,30 @@ class TwitterTasks extends Command {
 		if($first) {
 			$this->info("Latest ID: " . $message->id_str);
 			$task->last_processed = $message->id_str;
-// 			$task->save();
+			$task->save();
 			$first = FALSE;
 		}
 
+		// Does this task require to check a list of allowed people to process?
+		if(in_array($this->twitter_task, $this->task_require_admin)) {
+			if(!$this->is_author_allowed($message)) {
+				$this->error(
+					$message->{$this->user_key}->screen_name . ' tried to post to ' .
+					$profile->social_username ."'s " . $this->twitter_task
+				);
+				return FALSE;
+			}
+		}
+
+		// Seems to be a legit, proccess it
+		$this->info('Tweet received: ' . $message->text);
+
+		$data = $this->process_message_text($message, $this->twitter_task, $profile);
+		$this->info('Done!');
+	}
+
+
+	private function is_author_allowed($message) {
 		// If the owner decided to allow everybody $this->allowed_people will be '*'
 		if(!is_string($this->allowed_people)) {
 			// If the user is not on the allowd admins, ignore the mention
@@ -223,18 +312,12 @@ class TwitterTasks extends Command {
 				return FALSE;
 			}
 		}
-		// Seems to be a request from a valid user, parse it
-		$this->info('Tweet received: ' . $message->text);
-
-// 		$this->info(print_r($message, TRUE));
-		$data = $this->process_message_text($message, 'mentions', $profile);
-// 		$this->info('Done!');
-// 		exit;
+		return TRUE;
 	}
-
 
 	private function process_message_text($message, $type, &$profile) {
 		$matches = array();
+		$text = $message->text;
 		switch ($type) {
 			case 'mentions':
 				if(mb_strpos($message->text, '@'. $profile->social_username) !== 0) {
@@ -242,11 +325,11 @@ class TwitterTasks extends Command {
 					$data['error'] = 'Hey!! You MUST mentioned me with my name first in the tweet. Don\'t mess with me!';
 					return $data;
 				} else {
-					$text = mb_substr($message->text, mb_strlen('@'. $profile->social_username));
+					$text = mb_substr($text, mb_strlen('@'. $profile->social_username));
 					$this->info('Text to process: ' . $text);
-// 					$this->info(print_r($message, TRUE));
 				}
 			case 'DMs':
+			case 'favorites':
 				if(isset($message->entities->urls) && !empty($message->entities->urls)) {
 					$this->info("There're URLs.");
 					// URLS
@@ -288,7 +371,7 @@ class TwitterTasks extends Command {
 				try {
 					$post =  Post::create($post_info);
 				} catch(PDOException $pdo) {
-				    var_dump($pdo->getMessage());
+// 				    var_dump($pdo->getMessage());
 				    $post_info['slug'] .= microtime();
 				    $post =  Post::create($post_info);
 				    sleep(1);
@@ -319,7 +402,7 @@ class TwitterTasks extends Command {
 	protected function getArguments()
 	{
 		return array(
-			array('taskName', InputArgument::REQUIRED, 'The name of the task to be run.'),
+// 			array('taskName', InputArgument::REQUIRED, 'The name of the task to be run.'),
 		);
 	}
 
