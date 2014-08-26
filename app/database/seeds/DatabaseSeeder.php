@@ -23,10 +23,36 @@ class UserTableSeeder extends Seeder {
 	{
 		DB::table('users')->delete();
 
-		User::create(array(
+		$user = User::create(array(
 			'username' => 'test',
 			'password' => Hash::make('test'),
 			'email' => 'foo@bar.com',
+		));
+
+		DB::table('posts')->delete();
+
+		Post::create(array(
+			'owner_id' => $user->id,
+			'author' => '@birrastoday',
+			'slug' => '1st-post',
+			'title' => 'This is the first post',
+			'link' => 'http://birras.today',
+			'image' => NULL,
+			'created_from_prov' => 'twitter',
+			'created_from_msg' => '500040015003783170',
+			'created_at' => date('Y-m-d H:i:s'),
+		));
+
+		Post::create(array(
+			'owner_id' => $user->id,
+			'author' => '@birrastoday',
+			'slug' => '2nd-post',
+			'title' => 'This is the second post',
+			'link' => 'http://reddit.com',
+			'image' => NULL,
+			'created_from_prov' => 'twitter',
+			'created_from_msg' => '500040015003783170',
+			'created_at' => date('Y-m-d H:i:s'),
 		));
 	}
 
