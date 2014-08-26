@@ -27,6 +27,12 @@ class TwitterTasks extends Command {
 	private $twitter_task;
 	private $last_processed;
 	private $user_key;
+	private $task_calls = array(
+		'mentions' => 'getMentionsTimeline',
+		'favorites' => 'getFavorites',
+		'retweets' => 'getUserTimeline',
+		'user_tl' => 'getUserTimeline',
+	);
 
 	/**
 	 * Create a new command instance.
@@ -65,14 +71,69 @@ class TwitterTasks extends Command {
 	public function fire()
 	{
 		$users = User::all();
+		$task_name = $this->argument('taskName') . '_task';
 		foreach($users AS $user) {
 			switch($this->argument('taskName')) {
 				case "mentions":
-					$this->mentions_task($user);
+				case "favorites":
+				case 'DMs':
+					$this->{$task_name}($user);
 					break;
 				default:
 					$this->error("Unknown task.");
 					break;
+			}
+		}
+	}
+
+	private function DMs_task($user) {
+		$this->twitter_task = 'DMs';
+		$this->user_key = 'sender';
+	}
+
+	private function favorites_task($user) {
+		$this->user_key = 'user';
+		$this->twitter_task = 'favorites';
+
+		$twitter_profile = $user->profiles()->where('provider', '=', 'twitter')->first();
+		if(!isset($twitter_profile->access_token) OR empty($twitter_profile->access_token)) {
+			$this->error("The user " . $user->username . " doesn't have valid credentials or profiles.");
+			return FALSE;
+		} else {
+			$this->info("Processing " . $user->username);
+		}
+
+		$task = $this->get_last_processed($this->twitter_task, $user->id, $twitter_profile->provider);
+		if(!is_object($task)) {
+			$task = new SocialTask;
+			$task->provider = 'twitter';
+			$task->user_id = $user->id;
+			$task->task = $this->twitter_task;
+		}
+		$options = array(
+			'count' => 200,
+			'include_rts' => false,
+			'contributor_details' => false,
+			'include_entities' => true,
+		);
+
+		// Request from the last mention processed
+		if(!empty($this->last_processed) && is_numeric($this->last_processed)) {
+			$options['since_id'] = $this->last_processed;
+		}
+
+		$this->info('Retrieving ' . $this->twitter_task);
+		$config = array(
+			'token' => $twitter_profile->access_token,
+			'secret' => $twitter_profile->secret,
+			'format' => 'array',
+		);
+		Twitter::set_new_config($config);
+		$result = Twitter::getFavorites($options);
+		if(is_array($result) && !empty($result)) {
+			$first = TRUE;
+			foreach($result AS $mention) {
+				$this->process_twitter_message($mention, $first, $task, $twitter_profile);
 			}
 		}
 	}
@@ -119,7 +180,8 @@ class TwitterTasks extends Command {
 			'format' => 'array',
 		);
 		Twitter::set_new_config($config);
-		$result = Twitter::query('statuses/mentions_timeline', 'GET', $options);
+
+		$result = Twitter::getMentionsTimeline($options);
 		if(is_array($result) && !empty($result)) {
 			$first = TRUE;
 			foreach($result AS $mention) {

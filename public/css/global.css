@@ -38,6 +38,10 @@ ul {
 	font-size: 2em;
 }
 
+.title a {
+	text-decoration: underline;
+}
+
 .author {
 	font-size: 0.8em;
 	padding-left: 60px;

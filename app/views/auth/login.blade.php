@@ -33,7 +33,7 @@
 				</div>
 			</div>
 
-			<!-- password field -->
+			<!-- remember_me field -->
 			<div class="form-group">
 			{{ Form::label('remember_me', 'Remember me', array('class' => 'control-label col-xs-offset-2', 'for' => 'remember_me')) }}
 			<div class="col-xs-offset-2 col-xs-10">

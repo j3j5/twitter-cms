@@ -6,7 +6,7 @@ class AuthController extends BaseController {
 		parent::__construct();
 
 		// You can connect a social media account at any time
-		$this->beforeFilter('guest', array('except' => array('anyLogout', 'anyCallback', 'anySocial')));
+		$this->beforeFilter('guest', array('except' => array('anyLogout', 'anyCallback', 'anySocial', 'anyTest')));
 		$this->beforeFilter('auth', array('only' => 'anyLogout'));
 		$this->beforeFilter('csrf', array('on' => 'post'));
 		$this->afterFilter('log', array('only' => array('postLogin', 'postRegister')));
@@ -72,6 +72,8 @@ class AuthController extends BaseController {
 			'email' => Input::get('email'),
 			'passwordEnabled' => 1,
 		));
+		// Create the default settings
+
 		return Redirect::to('profile')->with('flash_notice', 'Yeeehaaa! You have signed up!');
 	}
 
@@ -150,6 +152,11 @@ class AuthController extends BaseController {
 				}
 				break;
 			default:
+				return Redirect::to('auth/login')
+						->with('flash_error',
+								'Sorry, ' . $provider . ' is not supported yet for authentication.</br>' .
+								'Do you think it should be? <a href="mailto:"'. Config::get('app.support.email') .
+								'"> Drop us an email and we\'ll try to add it soon based on popular demand.');
 				break;
 		}
 		return Redirect::to('auth/login');
@@ -240,7 +247,6 @@ class AuthController extends BaseController {
 			$user = $profile->user()->first();
 			Log::debug('Found a profile='.$profile->display_name);
 			Log::debug('Logging in!!');
-			Auth::login($user);
 		}
 
 		// If we haven't found a user, we need to create a new one
@@ -255,12 +261,11 @@ class AuthController extends BaseController {
 			$user->passwordEnabled = 0;
 
 			// get the custom config from the db.php config file
-			$result = $user->save();
-			if ( !$result ) {
+			$result_user = $user->save();
+			if ( !$result_user ) {
 				Log::error('FAILED TO SAVE USER');
 				return FALSE;
 			}
-			Auth::login($user);
 		}
 		Log::info('succesful login!');
 
@@ -269,17 +274,35 @@ class AuthController extends BaseController {
 			Log::info(print_r($user_info, TRUE));
 			// If we didn't find the profile, we need to create a new one
 			$profile = $this->createTwitterProfile($user_info, $user);
+
 		} else {
 			Log::info('Updating twitter profile');
 			// If we did find a profile, make sure we update any changes to the source
 			$profile = $this->updateTwitterProfile($user_info, $profile);
 		}
-		$result = $profile->save();
-		if (!$result) {
+		$result_profile = $profile->save();
+		$settings = $profile->twitterSettings()->first();
+		if(empty($settings)) {
+			Log::info('Failed to find settings, creting new ones.');
+			$settings = $this->createDefaultTwitterSettings($profile->social_id);
+		}
+
+		if (!$result_profile) {
 			Log::error('FAILED TO SAVE PROFILE');
 			return FALSE;
+		} elseif(empty($settings)) {
+			Log::error('Failed to save or find settings.');
+			return FALSE;
 		}
+
+		// Login the user
+		Auth::login($user);
+
 		return $profile;
+	}
+
+	private function createDefaultTwitterSettings($profile_id) {
+		return TwitterSetting::create(array('profile_id' => $profile_id));
 	}
 
 	private function createTwitterProfile($social_user, $user) {

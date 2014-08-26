@@ -20,18 +20,18 @@
 		<div id="mainContent" class="container main">
 				<!-- check for flash notification message -->
 				@if(Session::has('flash_notice'))
-					<div id="flash_notice" class="alert alert-success my-alert">
-						<button class="close-button close-button16 flash-close">@include('objects.close')</button>
+					<div id="flash_notice" class="alert alert-success alert-dismissible my-alert">
+						<button type="button" class="close" data-dismiss="alert"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
 						{{ Session::get('flash_notice') }}
 					</div>
 				@endif
 
 				<!-- check for login error flash var -->
 				@if (Session::has('flash_error'))
-					<div id="flash_error" class="alert alert-danger my-alert" >
-						<button class="close-button close-button16 flash-close">@include('objects.close')</button>
+					<div id="flash_error" class="alert alert-danger alert-dismissible my-alert" >
+						<button type="button" class="close" data-dismiss="alert"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
 						{{ Session::get('flash_error') }}
-						</div>
+					</div>
 				@endif
 
 				@yield('content')
