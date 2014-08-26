@@ -27,6 +27,7 @@ class UserTableSeeder extends Seeder {
 			'username' => 'test',
 			'password' => Hash::make('test'),
 			'email' => 'foo@bar.com',
+			'passwordEnabled' => 1,
 		));
 
 		DB::table('posts')->delete();
