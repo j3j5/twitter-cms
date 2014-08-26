@@ -22,6 +22,7 @@
             <li><a class="btn btn-small btn-navbar" href="auth/login">Sign in</a></li>
             <li><a class="btn btn-small btn-navbar" href="auth/register">Sign up</a></li>
 			@else
+			<li><a class="btn btn-small btn-navbar" href="profile">Settings</a></li>
 			<li><a class="btn btn-small btn-navbar" href="auth/logout">Sign out</a></li>
 			@endif
           </ul>
