@@ -44,6 +44,8 @@ class TwitterTasks extends Command {
 	private $modulo;
 	private $shard_file;
 
+	private $api_options;
+
 	/**
 	 * Create a new command instance.
 	 *
@@ -64,25 +66,23 @@ class TwitterTasks extends Command {
 		);
 		$this->task_settings = array(
 			$this->shard_tasks[0]	=> 'user_tweets',
-			$this->shard_tasks[1]	=> 'user_rts',
+			$this->shard_tasks[1]	=> 'mentions',
 			$this->shard_tasks[2]	=> 'user_favs',
-			$this->shard_tasks[3]	=> 'mentions',
+			$this->shard_tasks[3]	=> 'user_rts',
 			$this->shard_tasks[4]	=> 'user_DMs',
 		);
 		// Add the tasks which require a call to get_allowed_users()
 		$this->task_require_admin = array(
 			'mentions', 'DMs'
 		);
-	}
 
-	private function get_allowed_users($social_id, $provider) {
-
-		$this->allowed_people = array(
-			'808653950', // @0001Julio
-			'808800859', // @0002Julio
+		// Set of default options to use on the API calls
+		$this->api_options = array(
+			'count' => 200,
+			'include_rts' => false,
+			'contributor_details' => false,
+			'include_entities' => true,
 		);
-		$this->allowed_people = '*';
-		return $this->allowed_people;
 	}
 
 	private function get_last_processed($task, $user_id, $provider) {
@@ -103,14 +103,13 @@ class TwitterTasks extends Command {
 				exit;
 			}
 		}
-// 		$shard = trim(file_get_contents($this->shard_file));
-		$shard = 1;
+		$shard = trim(file_get_contents($this->shard_file));
 		if ($shard === FALSE OR ($shard + 1) >= $this->modulo) {
 			$shard = 0;
 		} else {
 			$shard++;
 		}
-// 		file_put_contents($this->shard_file, $shard);
+		file_put_contents($this->shard_file, $shard);
 		$this->twitter_task = $this->shard_tasks[$shard];
 		$this->info("Shard: " . $shard . '; Task: ' . $this->twitter_task);
 		return $this->shard_tasks[$shard];
@@ -151,25 +150,47 @@ class TwitterTasks extends Command {
 		}
 	}
 
-	private function DMs_task($user) {
+	private function user_tl_task(&$user) {
+		$this->user_key = 'user';
+		$this->generic_task($user);
+	}
+
+	private function DMs_task(&$user) {
 		$this->user_key = 'sender';
+		$this->generic_task($user);
 		return;
 	}
 
-	private function RTs_task($user) {
+	private function retweets_task(&$user) {
 		$this->user_key = 'user';
-		return;
+		$this->api_options['include_rts'] = TRUE;
+		$this->generic_task($user);
 	}
 
 	private function favorites_task(&$user) {
 		$this->user_key = 'user';
 
-		$twitter_profile = $user->profiles()->where('provider', '=', 'twitter')->first();
+		$this->generic_task($user);
+	}
+
+	private function mentions_task(&$user) {
+		// Set the user key on mentions objects
+		$this->user_key = 'user';
+
+		$this->generic_task($user);
+	}
+
+	private function generic_task(&$user) {
+		$twitter_profile = $user->profiles()->twitter()->first();
 		if(!isset($twitter_profile->access_token) OR empty($twitter_profile->access_token)) {
 			$this->error("The user " . $user->username . " doesn't have valid credentials or profiles.");
 			return FALSE;
 		} else {
 			$this->info("Processing " . $user->username);
+		}
+
+		if(in_array($this->twitter_task, $this->task_require_admin)) {
+			$this->get_allowed_users($user->id, $twitter_profile->provider);
 		}
 
 		$task = $this->get_last_processed($this->twitter_task, $user->id, $twitter_profile->provider);
@@ -179,12 +200,7 @@ class TwitterTasks extends Command {
 			$task->user_id = $user->id;
 			$task->task = $this->twitter_task;
 		}
-		$options = array(
-			'count' => 200,
-			'include_rts' => false,
-			'contributor_details' => false,
-			'include_entities' => true,
-		);
+		$options = $this->api_options;
 
 		// Request from the last mention processed
 		if(!empty($this->last_processed) && is_numeric($this->last_processed)) {
@@ -208,60 +224,8 @@ class TwitterTasks extends Command {
 		}
 	}
 
-	private function mentions_task($user) {
-		// Set the user key on mentions objects
-		$this->user_key = 'user';
-
-		$twitter_profile = $user->profiles()->where('provider', '=', 'twitter')->first();
-		if(!isset($twitter_profile->access_token) OR empty($twitter_profile->access_token)) {
-			$this->error("The user " . $user->username . " doesn't have valid credentials or profiles.");
-			return FALSE;
-		} else {
-			$this->info("Processing " . $user->username);
-		}
-
-		///TODO: Implement proper in-house admin list
-		$this->get_allowed_users($user->id, $twitter_profile->provider);
-
-		$task = $this->get_last_processed('mentions', $user->id, $twitter_profile->provider);
-		if(!is_object($task)) {
-			$task = new SocialTask;
-			$task->provider = 'twitter';
-			$task->user_id = $user->id;
-			$task->task = 'mentions';
-		}
-		$options = array(
-			'count' => 200,
-			'include_rts' => false,
-			'contributor_details' => false,
-			'include_entities' => true,
-		);
-
-		// Request from the last mention processed
-		if(!empty($this->last_processed) && is_numeric($this->last_processed)) {
-			$options['since_id'] = $this->last_processed;
-		}
-
-		$this->info('Retrieving mentions');
-		$config = array(
-			'token' => $twitter_profile->access_token,
-			'secret' => $twitter_profile->secret,
-			'format' => 'array',
-		);
-		Twitter::set_new_config($config);
-
-		$result = Twitter::getMentionsTimeline($options);
-		if(is_array($result) && !empty($result)) {
-			$first = TRUE;
-			foreach($result AS $mention) {
-				$this->process_twitter_message($mention, $first, $task, $twitter_profile);
-			}
-		}
-	}
-
-	protected function process_twitter_message(&$message, &$first, &$task, &$profile) {
+	private function process_twitter_message(&$message, &$first, &$task, &$profile) {
 		// Next call will retrieve from this last id on
-
 		if($first) {
 			$this->info("Latest ID: " . $message->id_str);
 			$task->last_processed = $message->id_str;
@@ -287,8 +251,102 @@ class TwitterTasks extends Command {
 		$this->info('Done!');
 	}
 
+	private function process_message_text(&$message, $type, &$profile) {
+		$matches = array();
+		$text = $message->text;
+		switch ($type) {
+			case 'mentions':
+				// On the mentions we need to remove the name from it, but after that, they get processed as the rest
+				if(mb_strpos($message->text, '@'. $profile->social_username) === 0) {
+					$text = mb_substr($text, mb_strlen('@'. $profile->social_username));
+					$this->info('Text to process: ' . $text);
+				}
+			case 'retweets':
+				if(isset($message->retweeted_status) && !empty($message->retweeted_status)) {
+					$message = $message->retweeted_status;
+				} else {
+					// Ignore normal tweets from the timeline
+					return;
+				}
+			case 'user_tl':
+			case 'favorites':
+			case 'DMs':
+				$data = $this->process_tweet($message, $profile, $text);
+				break;
+			default:
+				$this->info('default');
+				exit;
+		}
+		return $data;
+	}
 
-	private function is_author_allowed($message) {
+	private function process_tweet(&$message, &$profile, $text) {
+		var_dump($message);
+		if(isset($message->entities->urls) && !empty($message->entities->urls)) {
+			$this->info("There're URLs.");
+			// URLS
+			$url_ent = reset($message->entities->urls);
+			$image = NULL;
+			$link = $url_ent->expanded_url;
+			$title = trim(str_replace($url_ent->url, '', $text));
+		} elseif(isset($message->entities->media) && !empty($message->entities->media)) {
+			$this->info("There's media.");
+			// Pictures
+			$url_ent = reset($message->entities->media);
+			$image = NULL;
+			if($url_ent->type == 'photo') {
+				$image = $url_ent->media_url;
+			}
+			$link = $url_ent->expanded_url;
+			$title = trim(str_replace($url_ent->url, '', $text));
+		} else {
+			$this->info('No entities to parse');
+			// Rest or nothing
+			$image = NULL;
+			$link = NULL;
+			$title = trim($text);
+		}
+		$this->info('Processed!!');
+		$title = preg_replace('/[\x00-\x1F\x80-\xFF]/', '', $title);
+		$slug = str_replace(' ', '-', mb_substr($title, 0, 20)) . time();
+		if(empty($slug)) {
+			var_dump($message); exit;
+		}
+		$post_info = array(
+			'owner_id' => $profile->user_id,
+			'author' => '@' . $message->user->screen_name,
+			'slug' => $slug,
+			'title' => $title,
+			'link' => $link,
+			'image' => $image,
+			'created_from_prov' => 'twitter',
+			'created_from_msg' => $message->id_str,
+			'created_at' => date('Y-m-d H:i:s', strtotime($message->created_at)),
+		);
+		try {
+			$post =  Post::create($post_info);
+		} catch(PDOException $pdo) {
+			var_dump($pdo->getMessage());
+			$post_info['slug'] .= substr(str_shuffle("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"), 0, 10);
+			$post =  Post::create($post_info);
+			sleep(1);
+		}
+
+		return array('message' => 'Post ' . $post->id . ' added successfully.');
+	}
+
+
+	private function get_allowed_users($social_id, $provider) {
+		///TODO: implement a proper admin list for users
+		$this->allowed_people = array(
+			'808653950', // @0001Julio
+			'808800859', // @0002Julio
+			);
+			$this->allowed_people = '*';
+			return $this->allowed_people;
+	}
+
+	private function is_author_allowed(&$message) {
 		// If the owner decided to allow everybody $this->allowed_people will be '*'
 		if(!is_string($this->allowed_people)) {
 			// If the user is not on the allowd admins, ignore the mention
@@ -314,85 +372,6 @@ class TwitterTasks extends Command {
 		}
 		return TRUE;
 	}
-
-	private function process_message_text($message, $type, &$profile) {
-		$matches = array();
-		$text = $message->text;
-		switch ($type) {
-			case 'mentions':
-				if(mb_strpos($message->text, '@'. $profile->social_username) !== 0) {
-					$this->error('Incorrect format, @' . $profile->social_username . ' must be in front.');
-					$data['error'] = 'Hey!! You MUST mentioned me with my name first in the tweet. Don\'t mess with me!';
-					return $data;
-				} else {
-					$text = mb_substr($text, mb_strlen('@'. $profile->social_username));
-					$this->info('Text to process: ' . $text);
-				}
-			case 'DMs':
-			case 'favorites':
-				if(isset($message->entities->urls) && !empty($message->entities->urls)) {
-					$this->info("There're URLs.");
-					// URLS
-					$url_ent = reset($message->entities->urls);
-					$image = NULL;
-					$link = $url_ent->expanded_url;
-					$title = trim(str_replace($url_ent->url, '', $text));
-				} elseif(isset($message->entities->media) && !empty($message->entities->media)) {
-					$this->info("There's media.");
-					// Pictures
-					$url_ent = reset($message->entities->media);
-					$image = NULL;
-					if($url_ent->type == 'photo') {
-						$image = $url_ent->media_url;
-					}
-					$link = $url_ent->expanded_url;
-					$title = trim(str_replace($url_ent->url, '', $text));
-				} else {
-					$this->info('No entities to parse');
-					// Rest or nothing
-					$image = NULL;
-					$link = NULL;
-					$title = trim($text);
-				}
-				$this->info('Processed!!');
-
-				$slug = str_replace(' ', '-', mb_substr($title, 0, 20)) . time();
-				$post_info = array(
-					'owner_id' => $profile->user_id,
-					'author' => '@' . $message->user->screen_name,
-					'slug' => $slug,
-					'title' => $title,
-					'link' => $link,
-					'image' => $image,
-					'created_from_prov' => 'twitter',
-					'created_from_msg' => $message->id_str,
-					'created_at' => date('Y-m-d H:i:s', strtotime($message->created_at)),
-				);
-				try {
-					$post =  Post::create($post_info);
-				} catch(PDOException $pdo) {
-// 				    var_dump($pdo->getMessage());
-				    $post_info['slug'] .= microtime();
-				    $post =  Post::create($post_info);
-				    sleep(1);
-				}
-
-				$data = array('message' => 'Post ' . $post->id . ' added successfully.');
-				break;
-			default:
-				$this->info('default');
-				break;
-		}
-		return $data;
-	}
-
-
-
-
-
-
-
-
 
 	/**
 	 * Get the console command arguments.

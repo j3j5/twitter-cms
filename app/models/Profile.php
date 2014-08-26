@@ -13,4 +13,9 @@ class Profile extends Eloquent {
 	public function twitterSettings() {
 		return $this->hasOne('TwitterSetting', 'profile_id', 'social_id');
 	}
+
+	public function scopeTwitter($query)
+	{
+		return $query->where('provider', '=', 'twitter');
+	}
 }
