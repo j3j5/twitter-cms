@@ -9,4 +9,8 @@ class Profile extends Eloquent {
 	public function user() {
 		return $this->belongsTo('User');
 	}
+
+	public function twitterSettings() {
+		return $this->hasOne('TwitterSetting', 'profile_id', 'social_id');
+	}
 }
